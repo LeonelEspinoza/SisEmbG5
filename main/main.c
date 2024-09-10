@@ -192,9 +192,9 @@ int bme_softreset(void) {
     ret = bme_i2c_write(I2C_NUM_0, &reg_softreset, &val_softreset, 1);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     if (ret != ESP_OK) {
-        //printf("\nError en softreset: %s \n", esp_err_to_name(ret));
+        printf("\nError en softreset: %s \n", esp_err_to_name(ret));
         return 1;
-    } else {
+    //} else {
         //printf("\nSoftreset: OK\n\n");
     }
     return 0;
@@ -328,7 +328,8 @@ int bme_temp_celsius(uint32_t temp_adc) {
     par_t1 = (par[1] << 8) | par[0];
     par_t2 = (par[3] << 8) | par[2];
     par_t3 = par[4];
-
+    
+    
     int64_t var1;
     int64_t var2;
     int64_t var3;
@@ -342,6 +343,87 @@ int bme_temp_celsius(uint32_t temp_adc) {
     t_fine = (int32_t)(var2 + var3);
     calc_temp = (((t_fine * 5) + 128) >> 8);
     return calc_temp;
+}
+
+int bme_pressure_pascal(uint32_t press_adc){
+    uint8_t addr_par_p1_lsb = 0x8E, addr_par_p1_msb = 0x8F;
+    uint8_t addr_par_p2_lsb = 0x90, addr_par_p2_msb = 0x91;
+    uint8_t addr_par_p3_lsb = 0x92;
+    uint8_t addr_par_p4_lsb = 0x94, addr_par_p4_msb = 0x95;
+    uint8_t addr_par_p5_lsb = 0x96, addr_par_p5_msb = 0x97;
+    uint8_t addr_par_p6_lsb = 0x99;
+    uint8_t addr_par_p7_lsb = 0x98;
+    uint8_t addr_par_p8_lsb = 0x9C, addr_par_p8_msb = 0x9D;
+    uint8_t addr_par_p9_lsb = 0x9E, addr_par_p9_msb = 0x9F;
+    uint8_t addr_par_p10_lsb = 0xA0;
+    uint16_t par_p1;
+    uint16_t par_p2;
+    uint16_t par_p3;
+    uint16_t par_p4;
+    uint16_t par_p5;
+    uint16_t par_p6;
+    uint16_t par_p7;
+    uint16_t par_p8;
+    uint16_t par_p9;
+    uint16_t par_p10;
+
+    uint8_t par[16];
+    bme_i2c_read(I2C_NUM_0, &addr_par_p1_lsb, par, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p1_msb, par + 1, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p2_lsb, par + 2, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p2_msb, par + 3, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p3_lsb, par + 4, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p4_lsb, par + 5, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p4_msb, par + 6, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p5_lsb, par + 7, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p5_msb, par + 8, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p6_lsb, par + 9, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p7_lsb, par + 10, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p8_lsb, par + 11, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p8_msb, par + 12, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p9_lsb, par + 13, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p9_msb, par + 14, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_p10_lsb, par + 15, 1);
+    
+    //par_px = (par[y+1] << 8) | par [y]
+    //par_px = par[y]
+    
+    par_p1 = (par[1] << 8) | par[0];
+    par_p2 = (par[3] << 8) | par[2];
+    par_p3 = (par[4]);
+    par_p4 = (par[6] << 8) | par[5];
+    par_p5 = (par[8] << 8) | par[7];
+    par_p6 = par[9];
+    par_p7 = par[10];
+    par_p8 = (par[12] << 8) | par[11];
+    par_p9 = (par[14] << 8) | par[13];
+    par_p10 = par[15];
+
+    int64_t var1;
+    int64_t var2;
+    int64_t var3;
+    int press_comp;
+
+    // t_fine = 0 por ahora original -> var1 = ((int32_t)t_fine >> 1) - 64000;
+    var1 = ((int32_t)0 >> 1) - 64000;
+    var2 = ((((var1 >> 2) * (var1 >> 2)) >> 11) * (int32_t) par_p6) >> 2;
+    var2 = var2 + ((var1 * (int32_t)par_p5) << 1);
+    var2 = (var2 >> 2) +  ((int32_t)par_p4 << 16);
+    var1 = ((((( var1 >> 2) * (var1 >> 2)) >> 13) * ((int32_t)par_p3 << 5)) >> 3) + (((int32_t) par_p2 * var1) >> 1);
+    var1 = var1 >> 18;
+    var1 = ((32768 + var1) * (int32_t)par_p1) >> 15;
+    press_comp = 1048576 - press_adc;
+    press_comp = (uint32_t)((press_comp - (var2 >> 12)) * ((uint32_t)3125));
+    if (press_comp >= (1 << 30)){
+        press_comp = ((press_comp / (uint32_t)var1) << 1);
+    } else {
+        press_comp = ((press_comp << 1) / (uint32_t)var1);
+    }
+    var1 = ((int32_t)par_p9 * (int32_t)(((press_comp >> 3) * (press_comp >> 3)) >> 13)) >> 12;
+    var2 = ((int32_t)(press_comp >> 2) * (int32_t)par_p8) >> 13;
+    var3 = ((int32_t)(press_comp >> 8) * (int32_t)(press_comp >> 8) * (int32_t)(press_comp >> 8) * (int32_t)par_p10) >> 17;
+    press_comp = (int32_t)(press_comp) + ((var1 + var2 + var3 + ((int32_t)par_p7 << 7)) >> 4);
+    return press_comp;
 }
 
 void bme_get_mode(void) {
@@ -384,6 +466,27 @@ float bme_read_data(void) {
     return ret;
 }
 
+float bme_read_data_pressure(void){
+    uint8_t tmp;
+
+    uint8_t forced_press_addr[] = {0x1F, 0x20, 0x21};
+    uint32_t press_adc = 0;
+    bme_forced_mode();
+
+    bme_i2c_read(I2C_NUM_0, &forced_press_addr[0], &tmp, 1);
+    press_adc = press_adc | tmp << 12;
+    bme_i2c_read(I2C_NUM_0, &forced_press_addr[1], &tmp, 1);
+    press_adc = press_adc | tmp << 4;
+    bme_i2c_read(I2C_NUM_0, &forced_press_addr[2], &tmp, 1);
+    press_adc = press_adc | (tmp & 0xf0) >> 4;
+
+    uint32_t press = bme_pressure_pascal(press_adc);
+
+    float ret = (float)press; // 100;
+
+    return ret;
+}
+
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
 
 // Function for sending things to UART1
@@ -422,30 +525,49 @@ int serial_read(char *buffer, int size){
     return len;
 }
 
+float RMS(float *data, int wsize, int begin){
+    float sum = 0;
+    for (int i = begin; i < begin + wsize; i++){
+        float num = data[i];
+        sum = sum + pow(num,2);
+    }
+    float sumN = sum / wsize;
+    float rms = sqrt(sumN);
+    return rms;
+}
+
 // Main
-void app_main()
-{
+void app_main(){
     //Primero se conecta esp con python
-
-
     uart_setup(); // Uart setup
 
-    srand(time(0));  // Initialize random seed
+    //srand(time(0));  // Initialize random seed
 
-    // Waiting for an BEGIN to initialize data sending
+    // Waiting for a BEGIN to initialize data sending
     char dataResponse1[6];
     //printf("Beginning initialization... \n");
     
-    while (1)
-    {
+    while (1){
         int rLen = serial_read(dataResponse1, 6);
-        if (rLen > 0)
-        {
-            if (strcmp(dataResponse1, "BEGIN") == 0)
-            {
+        if (rLen > 0){
+            if (strcmp(dataResponse1, "BEGIN") == 0){
                 uart_write_bytes(UART_NUM,"OK\0",3);
                 break;
             }
+        }
+    }
+
+    char windowSize[2];
+    int wSize = 3;
+    
+    while(1){
+        int rLen = serial_read((char *) windowSize, 3);
+        if (rLen > 0){
+            int wSize10 = 10 * (int) windowSize[0];
+            int wSize1 = (int) windowSize[1];
+            wSize = wSize1 + wSize10;
+            uart_write_bytes(UART_NUM,"OK\0",3);
+            break;
         }
     }
     
@@ -461,18 +583,34 @@ void app_main()
     // Data sending, can be stopped receiving an END between sendings
     char dataResponse2[4];
     //printf("Beginning sending... \n");
-    while (1)
-    {
-        float data[3];
-        for (int i = 0; i < 3; i++)
-        {
+    
+    while (1){
+        float data[210];
+        for (int i = 0; i < wSize; i++){
             float temp = bme_read_data();
             data[i] = temp;  // manda la temperatura
+            float press = bme_read_data_pressure();
+            data[99 + i] = press;  // manda la presion
         }
+        
+        //for (int i = 99; i < 99 + wSize; i++){
+            //float press = bme_read_data_pression();
+            //data[i] = press;  // manda la presion
+        //}
+        //0-98 temp
+        //99-198 press
+        //199 RMS1
+        //200 RMS2
+        float temp_RMS = RMS(data, wSize, 0);
+        float press_RMS = RMS(data, wSize, 99);
+
+        data[208] = temp_RMS;
+        data[209] = press_RMS;
+        
         const char* dataToSend = (const char*)data;
 
 
-        int len = sizeof(float)*3;
+        int len = sizeof(float)*210;
 
         uart_write_bytes(UART_NUM, dataToSend, len);
 

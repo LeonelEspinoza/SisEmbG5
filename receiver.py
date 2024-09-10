@@ -18,12 +18,13 @@ def receive_response():
     response = ser.readline()
     return response
 
-def receive_data():
+def receive_data(windows_size):
     """ Funcion que recibe tres floats (fff) de la ESP32 
     y los imprime en consola """
+    strf = make_f(windows_size)
     data = receive_response()
     print(data)
-    data = unpack("fff", data)
+    data = unpack(strf, data)
     print(f'Received: {data}')
     return data
 
@@ -32,16 +33,40 @@ def send_end_message():
     end_message = pack('4s', 'END\0'.encode())
     ser.write(end_message)
 
+def make_f(size):
+    strf = ""
+    for i in range(0,size):
+        strf += "f"
+    return strf
+
 # Se envia el mensaje de inicio de comunicacion
 message = pack('6s','BEGIN\0'.encode())
 send_message(message)
+
+#recive ok
+#msg = receive_response()
+#print(msg)
+#msg = unpack("sss",msg)
+#print(f'Received: {msg}')
+
+# Se envia el tamaño de la ventana
+windows_size = input("Enter window size (max 99):")
+
+#manda tamaño de ventana
+send_message(pack('2s',windows_size.encode()))
+
+#recive ok 2
+#msg = receive_response()
+#print(msg)
+#msg = unpack("sss",msg)
+#print(f'Received: {msg}')
 
 # Se lee data por la conexion serial
 counter = 0
 while True:
     if ser.in_waiting > 0:
         try:
-            message = receive_data()
+            message = receive_data(windows_size)
         except:
             print('Error en leer mensaje')
             continue
@@ -49,7 +74,7 @@ while True:
             counter += 1
             print(counter)
         finally:
-            if counter == 10:
+            if counter == 3:
                 print('Lecturas listas!')
                 break
 
