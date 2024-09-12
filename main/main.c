@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 
 #include "driver/i2c.h"
@@ -12,10 +13,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
-#include "math.h"
 #include "sdkconfig.h"
 
 #define CONCAT_BYTES(msb, lsb) (((uint16_t)msb << 8) | (uint16_t)lsb)
+#define min(a,b) (((a)<(b))?(a):(b))
+#define max(a,b) (((a)>(b))?(a):(b))
 
 #define BUF_SIZE (128) // buffer size
 #define TXD_PIN 1  // UART TX pin
@@ -526,6 +528,7 @@ int serial_read(char *buffer, int size){
 }
 
 float RMS(float *data, int wsize, int begin){
+    printf("<RMS>\n");
     float sum = 0;
     for (int i = begin; i < begin + wsize; i++){
         float num = data[i];
@@ -540,18 +543,16 @@ float RMS(float *data, int wsize, int begin){
 void app_main(){
     //Primero se conecta esp con python
     uart_setup(); // Uart setup
-
-    //srand(time(0));  // Initialize random seed
+    uart_write_bytes(UART_NUM,"OK uart_setup\0",14);
 
     // Waiting for a BEGIN to initialize data sending
     char dataResponse1[6];
-    //printf("Beginning initialization... \n");
     
     while (1){
         int rLen = serial_read(dataResponse1, 6);
         if (rLen > 0){
             if (strcmp(dataResponse1, "BEGIN") == 0){
-                uart_write_bytes(UART_NUM,"OK\0",3);
+                printf("<app_main> OK Begin\n");
                 break;
             }
         }
@@ -563,14 +564,12 @@ void app_main(){
     while(1){
         int rLen = serial_read((char *) windowSize, 3);
         if (rLen > 0){
-            int wSize10 = 10 * (int) windowSize[0];
-            int wSize1 = (int) windowSize[1];
-            wSize = wSize1 + wSize10;
-            uart_write_bytes(UART_NUM,"OK\0",3);
+            wSize = atoi(windowSize);
+            printf("<app_main> OK windowSize\n");
             break;
         }
     }
-    
+
     //Conectamos esp con bme
     ESP_ERROR_CHECK(sensor_init());
     bme_get_chipid();
@@ -582,52 +581,48 @@ void app_main(){
 
     // Data sending, can be stopped receiving an END between sendings
     char dataResponse2[4];
-    //printf("Beginning sending... \n");
-    
+    int DataSize = sizeof(float)*(wSize*2+2);
+    float * data = malloc(DataSize);
+
+    printf("<app_main> Starting while\n");
     while (1){
-        float data[210];
+        printf("<app_main> Starting for (winSize=%d)\n", wSize);
         for (int i = 0; i < wSize; i++){
+
+            printf("<app_main> Reading temperature data %d\n", i);
             float temp = bme_read_data();
-            data[i] = temp;  // manda la temperatura
+            data[(i)] = temp;  // manda la temperatura
+
+            printf("<app_main> Reading  presure data %d\n", i);
             float press = bme_read_data_pressure();
-            data[99 + i] = press;  // manda la presion
+            data[(wSize + i)] = press;  // manda la presion
         }
         
-        //for (int i = 99; i < 99 + wSize; i++){
-            //float press = bme_read_data_pression();
-            //data[i] = press;  // manda la presion
-        //}
-        //0-98 temp
-        //99-198 press
-        //199 RMS1
-        //200 RMS2
+        printf("<app_main> Calling RMS\n");
         float temp_RMS = RMS(data, wSize, 0);
-        float press_RMS = RMS(data, wSize, 99);
+        float press_RMS = RMS(data, wSize, 10);
+        printf("<app_main> RMS done!\n");
 
-        data[208] = temp_RMS;
-        data[209] = press_RMS;
+        data[(wSize*2)] = temp_RMS;
+        data[(wSize*2+1)] = press_RMS;
         
+        printf("<app_main> Sending data\n");
         const char* dataToSend = (const char*)data;
 
 
-        int len = sizeof(float)*210;
-
-        uart_write_bytes(UART_NUM, dataToSend, len);
+        uart_write_bytes(UART_NUM, dataToSend, DataSize);
 
         int rLen = serial_read(dataResponse2, 4);
-        if (rLen > 0)
-        {
-            if (strcmp(dataResponse2, "END") == 0)
-            {
+        if (rLen > 0){
+            if (strcmp(dataResponse2, "END") == 0){
                 break;
             }
         }
         vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
     }
-
+    free(data);
     // Data sending stopped, sending just OK with \0 at the end
-    while (1)
-    {
-        uart_write_bytes(UART_NUM,"OK\0",3);
+    while (1){
+        uart_write_bytes(UART_NUM,"OK End\0",3);
     }
 }

@@ -1,0 +1,281 @@
+OK OK '
+
+***ERROR*** A stack overflow in task IDLE0 has been detected.
+
+
+Backtrace: 0x4008196a:0x3ffb4390 0x400869fd:0x3ffb43b0 0x4008790e:0x3ffb43d0 0x40088973:0x3ffb4450 0x40087a18:0x3ffb4470 0x400879ca:0x40082e62 |<-CORRUPTED
+
+
+
+
+ELF file SHA256: f0c17e290e3c20e9
+
+Rebooting...
+ets Jun  8 2016 00:22:57
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:7176
+load:0x40078000,len:15564
+ho 0 tail 12 room 4
+load:0x40080400,len:4
+load:0x40080404,len:3904
+entry 0x40080640
+
+(31) boot: ESP-IDF v5.3 2nd stage bootloader
+(31) boot: compile time Sep  6 2024 17:47:54
+(31) boot: Multicore bootloader
+(35) boot: chip revision: v1.0
+(39) boot.esp32: SPI Speed      : 40MHz
+(43) boot.esp32: SPI Mode       : DIO
+(48) boot.esp32: SPI Flash Size : 2MB
+(53) boot: Enabling RNG early entropy source...
+(58) boot: Partition Table:
+(62) boot: ## Label            Usage          Type ST Offset   Length
+(69) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+(76) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+(84) boot:  2 factory          factory app      00 00 00010000 00100000
+(91) boot: End of partition table
+
+(95) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=0b4c0h ( 46272) map
+(120) esp_image: segment 1: paddr=0001b4e8 vaddr=3ffb0000 size=02384h (  9092) load
+(123) esp_image: segment 2: paddr=0001d874 vaddr=40080000 size=027a4h ( 10148) load
+(130) esp_image: segment 3: paddr=00020020 vaddr=400d0020 size=1c6ach (116396) map
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h ( 47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+(245) app_init: ESP-IDF:          v5.3
+
+(250) efuse_init: Min chip rev:     v0.0
+(255) efuse_init: Max chip rev:     v3.99 
+(260) efuse_init: Chip rev:         v1.0
+
+(265) heap_init: Initializing. RAM available for dynamic allocation:
+(272) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+(278) heap_init: At 3FFB2C68 len 0002D398 (180 KiB): DRAM
+(284) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+(290) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h (47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+(245) app_init: ESP-IDF:          v5.3
+
+(250) efuse_init: Min chip rev:     v0.0
+(255) efuse_init: Max chip rev:     v3.99 
+(260) efuse_init: Chip rev:         v1.0
+
+(265) heap_init: Initializing. RAM available for dynamic allocation:
+(272) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+(278) heap_init: At 3FFB2C68 len 0002D398 (180 KiB): DRAM
+(284) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h ( 47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+(245) app_init: ESP-IDF:          v5.3
+
+(250) efuse_init: Min chip rev:     v0.0
+(255) efuse_init: Max chip rev:     v3.99 
+(260) efuse_init: Chip rev:         v1.0
+
+(265) heap_init: Initializing. RAM available for dynamic allocation:
+(272) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+(278) heap_init: At 3FFB2C68 len 0002D398 (180 KiB): DRAM
+
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h (47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+(245) app_init: ESP-IDF:          v5.3
+
+(250) efuse_init: Min chip rev:     v0.0
+(255) efuse_init: Max chip rev:     v3.99 
+(260) efuse_init: Chip rev:         v1.0
+
+(265) heap_init: Initializing. RAM available for dynamic allocation:
+
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h ( 47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h ( 47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h ( 47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h ( 47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+
+(174) esp_image: segment 4: paddr=0003c6d4 vaddr=400827a4 size=0bb48h ( 47944) load
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+
+(200) boot: Loaded app from partition at offset 0x10000
+(200) boot: Disabling RNG early entropy source...
+
+(212) cpu_start: Multicore app
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+
+(220) cpu_start: Pro cpu start user code
+(220) cpu_start: cpu freq: 160000000 Hz
+
+(221) app_init: Application information:
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+(245) app_init: ESP-IDF:          v5.3
+
+(250) efuse_init: Min chip rev:     v0.0
+
+(223) app_init: Project name:     main
+(228) app_init: App version:      526eec8-dirty
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+(245) app_init: ESP-IDF:          v5.3
+
+(250) efuse_init: Min chip rev:     v0.0
+
+(233) app_init: Compile time:     Sep 12 2024 11:40:17
+(239) app_init: ELF file SHA256:  f0c17e290e3c20e9...
+(245) app_init: ESP-IDF:          v5.3
+
+(250) efuse_init: Min chip rev:     v0.0
+(255) efuse_init: Max chip rev:     v3.99 
+(260) efuse_init: Chip rev:         v1.0
+
+(245) app_init: ESP-IDF:          v5.3
+
+(250) efuse_init: Min chip rev:     v0.0
+(255) efuse_init: Max chip rev:     v3.99 
+(260) efuse_init: Chip rev:         v1.0
+
+(265) heap_init: Initializing. RAM available for dynamic allocation:
+
+(255) efuse_init: Max chip rev:     v3.99 
+(260) efuse_init: Chip rev:         v1.0
+
+(265) heap_init: Initializing. RAM available for dynamic allocation:
+
+(260) efuse_init: Chip rev:         v1.0
+
+(265) heap_init: Initializing. RAM available for dynamic allocation:
+(272) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+(265) heap_init: Initializing. RAM available for dynamic allocation:
+(272) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+(272) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+(278) heap_init: At 3FFB2C68 len 0002D398 (180 KiB): DRAM
+(284) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+(290) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+(297) heap_init: At 4008E2EC len 00011D14 (71 KiB): IRAM
+
+(304) spi_flash: detected chip: generic
+(308) spi_flash: flash io: dio
+(311) spi_flash: Detected size(4096k) larger than the size in the binary image header(2048k). Using the size in the binary image header.
+
+(325) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`
