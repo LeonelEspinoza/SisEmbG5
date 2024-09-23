@@ -16,10 +16,10 @@ Proyecto semestral del ramo Sistemas Embebidos y Sensores (CC5328-1)
 
 ### Cambiar el tamaño de la ventana de datos
 1. Solicitar el cambio  (check)
-2. ESP cambia el tamaño y lo guarda en NVS
+2. ESP cambia el tamaño y lo guarda en NVS (check)
 3. Vielve al menu principal (check)
 
 ### Cerrar la conexion reiniciando la ESP
-1. Se anuncia el cierre
-2. ESP se reinicia
+1. Se anuncia el cierre (check)
+2. ESP se reinicia (check)
 3. Aplicacion termina (check)

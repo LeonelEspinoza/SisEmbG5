@@ -21,11 +21,13 @@ def receive_response():
 def receive_data(msg_size):
     """ Funcion que recibe tres floats (fff) de la ESP32 
     y los imprime en consola """
-    strf = make_f(msg_size)
-    #print(strf)
-    data = receive_response()
+    #data = receive_response()
+    #print(f"<receive_data> msg_size: {msg_size}")
+    data = ser.read(4*msg_size)
+    #data = ser.readline()
     print(data)
-    data = unpack(strf, data)
+    print(f"<receive_data> calling unpack with {msg_size}f")
+    data = unpack(f"{msg_size}f", data)
     print(f'Received: {data}')
     return data
 
@@ -35,15 +37,14 @@ def send_end_message():
     ser.write(end_message)
 
 def make_f(size):
-    strf = ""
-    for i in range(0,size):
-        strf += "f"
+    strf = "f" * size
     return strf
 
 
 wSize = 0
 
-#Try to recive window size
+
+tmp = 0
 while True:
     if ser.in_waiting > 0:
         try:
@@ -54,10 +55,15 @@ while True:
             continue
         finally:
             if str(response1).rfind('OK setup') == -1:
-                print("retry")
+                #print("retry")
                 continue
             print("sending BEGIN")
             break
+    
+    tmp+=1
+    if tmp > 100000:
+        tmp =0
+        print("intenta apretando el boton de la ESP")
 
 # Se envia el mensaje de inicio de comunicacion
 message = pack('6s','BEGIN\0'.encode())
@@ -67,9 +73,12 @@ send_message(message)
 while True:
     if ser.in_waiting > 0:
         try:
-            wSize_bytes = receive_response()
+            #wSize_bytes = receive_response()
+            wSize_bytes = ser.read(4)
+            print(f"wSize_bytes: {wSize_bytes}")
             wSize_bytes = unpack("i", wSize_bytes)
             wSize = int.from_bytes(wSize_bytes)
+            print(wSize)
         except:
             continue
         finally:
@@ -100,7 +109,7 @@ while(True):
 
     if select == "1":
         #Set msg_size
-        msg_size = (int(wSize) * 2) + 2 
+        msg_size = (wSize * 2) + 2 
 
         # Try to Recive sensor data
         while True:
@@ -110,7 +119,7 @@ while(True):
                 except:
                     continue
                 finally:
-                    if len(message) != wSize * 2 + 2:
+                    if len(message) != msg_size:
                         send_message(pack('2s',select.encode()))
                         print("Incorrect Data")
                         continue
@@ -121,9 +130,9 @@ while(True):
     if select == "2":
         
         while(True):
-            windows_size = input("Enter window size (0 - 999):")
+            windows_size = input("Enter window size (1 - 200):")
             try:
-                windows_size = min(999,max(0,int(windows_size)))
+                windows_size = min(200,max(1,int(windows_size)))
             except:
                 print("invalid input")
                 continue

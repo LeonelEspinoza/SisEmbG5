@@ -18,6 +18,7 @@
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "esp_sleep.h"
 
 #define CONCAT_BYTES(msb, lsb) (((uint16_t)msb << 8) | (uint16_t)lsb)
 #define min(a,b) (((a)<(b))?(a):(b))
@@ -56,6 +57,8 @@ int wSize_default = 3;
 int wSize = 3;
 
 int32_t NVS_wsize = 0;
+
+int t_fine = 0;
 
 esp_err_t sensor_init(void) {
     int i2c_master_port = I2C_NUM_0;
@@ -345,7 +348,7 @@ int bme_temp_celsius(uint32_t temp_adc) {
     int64_t var1;
     int64_t var2;
     int64_t var3;
-    int t_fine;
+    //int t_fine;
     int calc_temp;
 
     var1 = ((int32_t)temp_adc >> 3) - ((int32_t)par_t1 << 1);
@@ -426,17 +429,21 @@ int bme_pressure_pascal(uint32_t press_adc){
     var1 = ((32768 + var1) * (int32_t)par_p1) >> 15;
     press_comp = 1048576 - press_adc;
     press_comp = (uint32_t)((press_comp - (var2 >> 12)) * ((uint32_t)3125));
+
     if (press_comp >= (1 << 30)){
         press_comp = ((press_comp / (uint32_t)var1) << 1);
     } else {
         press_comp = ((press_comp << 1) / (uint32_t)var1);
     }
+
     var1 = ((int32_t)par_p9 * (int32_t)(((press_comp >> 3) * (press_comp >> 3)) >> 13)) >> 12;
     var2 = ((int32_t)(press_comp >> 2) * (int32_t)par_p8) >> 13;
     var3 = ((int32_t)(press_comp >> 8) * (int32_t)(press_comp >> 8) * (int32_t)(press_comp >> 8) * (int32_t)par_p10) >> 17;
     press_comp = (int32_t)(press_comp) + ((var1 + var2 + var3 + ((int32_t)par_p7 << 7)) >> 4);
+
     return press_comp;
 }
+
 
 void bme_get_mode(void) {
     uint8_t reg_mode = 0x74;
@@ -494,7 +501,7 @@ float bme_read_data_pressure(void){
 
     uint32_t press = bme_pressure_pascal(press_adc);
 
-    float ret = (float)press; // 100;
+    float ret = (float)press / 100;
 
     return ret;
 }
@@ -592,16 +599,20 @@ void Process_Data() {
     return;
 }
 
+// Setea el tamano de la ventana y lo actualiza en la NVS
 void Set_wSize() {
-    char windowSize[4];
+    char windowSize[5];
     esp_err_t err = nvs_flash_init();
     
-    printf("<Set_wSize> Start serial reading\n");
+    //printf("<Set_wSize> Start serial reading\n");
     while(1){
-        int rLen = serial_read((char *) windowSize, 4);
+        int rLen = serial_read(windowSize, 4);
         if (rLen > 0){
+            windowSize[4]=0;
+            //printf("<Set_wSize> windowSize: %s",windowSize);
             wSize = atoi(windowSize);
-            printf("<Set_wSize> Window size recived\n");
+            //printf("<Set_wSize> Window size recived\n");
+            //printf("<Set_wSize> wSize: %d",wSize);
             break;
         }
     }
@@ -614,36 +625,37 @@ void Set_wSize() {
     }
 
     //Open
-    printf("\n");
-    printf("<Set_wSize> Opening Non-Volatile Storage (NVS) handle... ");
+    //printf("<Set_wSize> Opening Non-Volatile Storage (NVS) handle... ");
     nvs_handle_t my_handle;
     ret = nvs_open("storage", NVS_READWRITE, &my_handle);
 
     if (err != ESP_OK) {
-        printf("<Set_wSize> Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        //printf("<Set_wSize> Error (%s) opening NVS handle!\n", esp_err_to_name(err));
         return;
     }
 
     //Write
     NVS_wsize = wSize;
     err = nvs_set_i32(my_handle, "NVS_wsize", NVS_wsize);
-    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+    //printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
     
     //Comit write value
-    printf("Comitting updates in NVS...");
+    //printf("<Set_wSize> Comitting updates in NVS...");
     err = nvs_commit(my_handle);
-    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+    //printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
 
     //close
     nvs_close(my_handle);
 }
 
 void ResetESP() {
-    esp_restart();
+    esp_deep_sleep(5000);
 }
 
+// Obtiene el tamano de la ventana que esta en la NVS
 void setup_wsize() {
     //initialize NVS
+    printf("<setup_wsize> Obteniendo tamano de la NVS\n");
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND){
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -651,13 +663,12 @@ void setup_wsize() {
     }
 
     //Open
-    printf("\n");
-    printf("Opening Non-Volatile Storage (NVS) handle... ");
+    printf("<setup_wsize> Opening Non-Volatile Storage (NVS) handle... ");
     nvs_handle_t my_handle;
     ret = nvs_open("storage", NVS_READWRITE, &my_handle);
 
     if (ret != ESP_OK) {
-        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
+        printf("<setup_wsize> Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
         return;
     }
 
@@ -665,15 +676,15 @@ void setup_wsize() {
     esp_err_t err = nvs_get_i32(my_handle, "NVS_wsize", &NVS_wsize);
     switch (err){
         case ESP_OK:
-            printf("Done\n");
+            printf("<setup_wsize> Done, NVS_wsize: %ld\n", NVS_wsize);
             wSize = NVS_wsize;
+            break;
         case ESP_ERR_NVS_NOT_FOUND:
-            printf("The value is not initialized yet!\n");
+            printf("<setup_wsize> The value is not initialized yet, using default: %d\n", wSize_default);
             wSize = wSize_default;
             break;
-
         default:
-            printf("Error (%s) reading!\n", esp_err_to_name(err));
+            printf("<setup_wsize> Error (%s) reading!\n", esp_err_to_name(err));
     }
 
     //close
@@ -689,12 +700,6 @@ void app_main(){
     
     char* dataToSend = "OK setup";
     uart_write_bytes(UART_NUM, (const char*)dataToSend ,strlen(dataToSend));
-    
-    //float fToSend[2]; 
-    //fToSend[0] = 0.16072705;
-    //fToSend[1] = 0.1;
-    //uart_write_bytes(UART_NUM, (const char*)fToSend ,sizeof(float)*2);
-
 
     // Waiting for a BEGIN to initialize data sending
     char dataResponse1[6];
@@ -703,7 +708,7 @@ void app_main(){
         int rLen = serial_read(dataResponse1, 6);
         if (rLen > 0){
             if (strcmp(dataResponse1, "BEGIN") == 0){
-                printf("<app_main> OK Begin\n");
+                //printf("<app_main> OK Begin\n");
                 break;
             }
         }
@@ -714,15 +719,14 @@ void app_main(){
     char dataResponse2[3];
     //const char* dataToSend = (const char*)wSize;
     
-    printf("<app_main> Sending wSize\n");
+    //printf("<app_main> Sending wSize\n");
 
     while (1){
         int ar[1];
         ar[0]=wSize;
-        //const char * tmp = "3";
         uart_write_bytes(UART_NUM, (const char*)ar, sizeof(int));
-        
         vTaskDelay(pdMS_TO_TICKS(500));  // Delay for 0.5 second
+        //printf("wSize sended: %d \n", ar[0]);
 
         int rLen = serial_read(dataResponse2, 3);
 
@@ -769,3 +773,4 @@ void app_main(){
 
     ResetESP();
 }
+
