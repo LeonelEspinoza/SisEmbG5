@@ -41,50 +41,108 @@ def make_f(size):
     return strf
 
 
+wSize = 0
+
+#Try to recive window size
+while True:
+    if ser.in_waiting > 0:
+        try:
+            response1 = receive_response()
+            print(response1)
+            response1 = unpack("s", response1)
+        except:
+            continue
+        finally:
+            if str(response1).rfind('OK setup') == -1:
+                print("retry")
+                continue
+            print("sending BEGIN")
+            break
 
 # Se envia el mensaje de inicio de comunicacion
 message = pack('6s','BEGIN\0'.encode())
 send_message(message)
 
-#recive ok
-#msg = receive_response()
-#print(msg)
-#msg = unpack("sss",msg)
-#print(f'Received: {msg}')
-
-# Se envia el tamaño de la ventana
-windows_size = input("Enter window size (max 10):")
-
-#manda tamaño de ventana
-send_message(pack('2s',windows_size.encode()))
-
-#recive ok 2
-#msg = receive_response()
-#print(msg)
-#msg = unpack("sss",msg)
-#print(f'Received: {msg}')
-
-msg_size = (int(windows_size) * 2) + 2 
-
-# Se lee data por la conexion serial
-counter = 0
+#Try to recive window size
 while True:
     if ser.in_waiting > 0:
         try:
-            message = receive_data(msg_size)
+            wSize_bytes = receive_response()
+            wSize_bytes = unpack("i", wSize_bytes)
+            wSize = int.from_bytes(wSize_bytes)
         except:
-            #print('Error en leer mensaje')
             continue
-        else: 
-            counter += 1
-            print(counter)
         finally:
-            if counter == 1:
-                print('Lecturas listas!')
+            print(wSize_bytes)
+            print('Set Window Size to ' + str(wSize))
+            if wSize < 1:
+                print("wSize < 1")
+                continue
+            message = pack('3s','OK\0'.encode())
+            send_message(message)
+            break
+
+while(True):
+    while(True):
+        print('''Choose one of the following:
+            [1] Get Data Window
+            [2] Change Window Size
+            [3] Finish Conection
+            ''')
+        select = input("Your selection: ")
+
+        if(select == "1" or select == "2" or select == "3"):
+            break
+        else:
+            print("invalid selecion")
+
+    send_message(pack('2s',select.encode()))
+
+    if select == "1":
+        #Set msg_size
+        msg_size = (int(wSize) * 2) + 2 
+
+        # Try to Recive sensor data
+        while True:
+            if ser.in_waiting > 0:
+                try:
+                    message = receive_data(msg_size)
+                except:
+                    continue
+                finally:
+                    if len(message) != wSize * 2 + 2:
+                        send_message(pack('2s',select.encode()))
+                        print("Incorrect Data")
+                        continue
+                    print('Data recived')
+                    break
+
+
+    if select == "2":
+        
+        while(True):
+            windows_size = input("Enter window size (0 - 999):")
+            try:
+                windows_size = min(999,max(0,int(windows_size)))
+            except:
+                print("invalid input")
+                continue
+            else:
                 break
 
+        wSize = windows_size
+        
+        if windows_size < 10:
+            windows_size = "00" + str(windows_size)
+        elif windows_size < 100:
+            windows_size = "0" + str(windows_size)
+        else:
+            windows_size = str(windows_size)
+        #manda tamaño de ventana
+        send_message(pack('3s',windows_size.encode()))
+        
 
-# Se envia el mensaje de termino de comunicacion
-send_end_message()
+    if select == "3":
+        break
 
 ser.close()

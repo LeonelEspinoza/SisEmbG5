@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <inttypes.h>
 
 
 #include "driver/i2c.h"
@@ -14,6 +15,9 @@
 #include "freertos/task.h"
 #include "driver/uart.h"
 #include "sdkconfig.h"
+#include "esp_system.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #define CONCAT_BYTES(msb, lsb) (((uint16_t)msb << 8) | (uint16_t)lsb)
 #define min(a,b) (((a)<(b))?(a):(b))
@@ -46,6 +50,12 @@ esp_err_t ret2 = ESP_OK;
 uint16_t val0[6];
 
 float task_delay_ms = 1000;
+
+int wSize_default = 3;
+
+int wSize = 3;
+
+int32_t NVS_wsize = 0;
 
 esp_err_t sensor_init(void) {
     int i2c_master_port = I2C_NUM_0;
@@ -528,7 +538,7 @@ int serial_read(char *buffer, int size){
 }
 
 float RMS(float *data, int wsize, int begin){
-    printf("<RMS>\n");
+    //printf("<RMS>\n");
     float sum = 0;
     for (int i = begin; i < begin + wsize; i++){
         float num = data[i];
@@ -539,11 +549,152 @@ float RMS(float *data, int wsize, int begin){
     return rms;
 }
 
+void Process_Data() {
+
+    //printf("<Process_Data> Starting for (winSize=%d)\n", wSize);
+
+    //Use wSize to set data size
+    int DataSize = sizeof(float)*(wSize*2+2);
+    float * data = malloc(DataSize);
+    
+    //Read and save data; wSize times each
+    for (int i = 0; i < wSize; i++){
+
+        //Read and save temperature data
+        //printf("<Process_Data> Reading temperature data %d\n", i);
+        float temp = bme_read_data();
+        data[i] = temp;
+
+        //Read and save pressure data
+        //printf("<Process_Data> Reading  presure data %d\n", i);
+        float press = bme_read_data_pressure();
+        data[wSize + i] = press;
+    }
+    
+    //printf("<Process_Data> Calling RMS\n");
+    //Calculate presure and temperature RMS
+    float temp_RMS = RMS(data, wSize, 0);
+    float press_RMS = RMS(data, wSize, wSize);
+
+    //Save RMS
+    data[wSize*2] = temp_RMS;
+    data[wSize*2+1] = press_RMS;
+    //printf("<Process_Data> RMS done!\n");
+    
+    //Send data
+    //printf("<Process_Data> Sending data\n");
+    const char* dataToSend = (const char*)data;
+    uart_write_bytes(UART_NUM, dataToSend, DataSize);
+
+    //free data malloc
+    free(data);
+
+    return;
+}
+
+void Set_wSize() {
+    char windowSize[4];
+    esp_err_t err = nvs_flash_init();
+    
+    printf("<Set_wSize> Start serial reading\n");
+    while(1){
+        int rLen = serial_read((char *) windowSize, 4);
+        if (rLen > 0){
+            wSize = atoi(windowSize);
+            printf("<Set_wSize> Window size recived\n");
+            break;
+        }
+    }
+
+    //initialize NVS
+    ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND){
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+
+    //Open
+    printf("\n");
+    printf("<Set_wSize> Opening Non-Volatile Storage (NVS) handle... ");
+    nvs_handle_t my_handle;
+    ret = nvs_open("storage", NVS_READWRITE, &my_handle);
+
+    if (err != ESP_OK) {
+        printf("<Set_wSize> Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        return;
+    }
+
+    //Write
+    NVS_wsize = wSize;
+    err = nvs_set_i32(my_handle, "NVS_wsize", NVS_wsize);
+    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+    
+    //Comit write value
+    printf("Comitting updates in NVS...");
+    err = nvs_commit(my_handle);
+    printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+
+    //close
+    nvs_close(my_handle);
+}
+
+void ResetESP() {
+    esp_restart();
+}
+
+void setup_wsize() {
+    //initialize NVS
+    ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND){
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+
+    //Open
+    printf("\n");
+    printf("Opening Non-Volatile Storage (NVS) handle... ");
+    nvs_handle_t my_handle;
+    ret = nvs_open("storage", NVS_READWRITE, &my_handle);
+
+    if (ret != ESP_OK) {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(ret));
+        return;
+    }
+
+    //read NVS
+    esp_err_t err = nvs_get_i32(my_handle, "NVS_wsize", &NVS_wsize);
+    switch (err){
+        case ESP_OK:
+            printf("Done\n");
+            wSize = NVS_wsize;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf("The value is not initialized yet!\n");
+            wSize = wSize_default;
+            break;
+
+        default:
+            printf("Error (%s) reading!\n", esp_err_to_name(err));
+    }
+
+    //close
+    nvs_close(my_handle);
+    
+}
+
 // Main
 void app_main(){
     //Primero se conecta esp con python
     uart_setup(); // Uart setup
-    uart_write_bytes(UART_NUM,"OK uart_setup\0",14);
+    setup_wsize();
+    
+    char* dataToSend = "OK setup";
+    uart_write_bytes(UART_NUM, (const char*)dataToSend ,strlen(dataToSend));
+    
+    //float fToSend[2]; 
+    //fToSend[0] = 0.16072705;
+    //fToSend[1] = 0.1;
+    //uart_write_bytes(UART_NUM, (const char*)fToSend ,sizeof(float)*2);
+
 
     // Waiting for a BEGIN to initialize data sending
     char dataResponse1[6];
@@ -558,71 +709,63 @@ void app_main(){
         }
     }
 
-    char windowSize[2];
-    int wSize = 3;
+    //setea el tamaño de la ventana
+    //mandamos el tamano de la ventana
+    char dataResponse2[3];
+    //const char* dataToSend = (const char*)wSize;
     
-    while(1){
-        int rLen = serial_read((char *) windowSize, 3);
+    printf("<app_main> Sending wSize\n");
+
+    while (1){
+        int ar[1];
+        ar[0]=wSize;
+        //const char * tmp = "3";
+        uart_write_bytes(UART_NUM, (const char*)ar, sizeof(int));
+        
+        vTaskDelay(pdMS_TO_TICKS(500));  // Delay for 0.5 second
+
+        int rLen = serial_read(dataResponse2, 3);
+
         if (rLen > 0){
-            wSize = atoi(windowSize);
-            printf("<app_main> OK windowSize\n");
-            break;
+            if (strcmp(dataResponse2, "OK") == 0){
+                break;
+            }
         }
     }
 
+    //printf("<app_main> OK wSize\n");
+    
     //Conectamos esp con bme
     ESP_ERROR_CHECK(sensor_init());
     bme_get_chipid();
     bme_softreset();
     bme_get_mode();
     bme_forced_mode();
+
+    //printf("<app_main> OK BME\n");
     
-    //Empezamos a enviar datos desde esp a python
-
-    // Data sending, can be stopped receiving an END between sendings
-    char dataResponse2[4];
-    int DataSize = sizeof(float)*(wSize*2+2);
-    float * data = malloc(DataSize);
-
-    printf("<app_main> Starting while\n");
-    while (1){
-        printf("<app_main> Starting for (winSize=%d)\n", wSize);
-        for (int i = 0; i < wSize; i++){
-
-            printf("<app_main> Reading temperature data %d\n", i);
-            float temp = bme_read_data();
-            data[(i)] = temp;  // manda la temperatura
-
-            printf("<app_main> Reading  presure data %d\n", i);
-            float press = bme_read_data_pressure();
-            data[(wSize + i)] = press;  // manda la presion
-        }
-        
-        printf("<app_main> Calling RMS\n");
-        float temp_RMS = RMS(data, wSize, 0);
-        float press_RMS = RMS(data, wSize, 10);
-        printf("<app_main> RMS done!\n");
-
-        data[(wSize*2)] = temp_RMS;
-        data[(wSize*2+1)] = press_RMS;
-        
-        printf("<app_main> Sending data\n");
-        const char* dataToSend = (const char*)data;
-
-
-        uart_write_bytes(UART_NUM, dataToSend, DataSize);
-
-        int rLen = serial_read(dataResponse2, 4);
+    char selection[2];
+    while(1){
+        int rLen = serial_read(selection, 2);
         if (rLen > 0){
-            if (strcmp(dataResponse2, "END") == 0){
+            //1 -> Solicitar Ventana
+            if (strcmp(selection, "1") == 0){
+                //printf("<app_main> Procesando Ventana de Datos\n");
+                Process_Data();
+            }
+            //2 -> Cambiar tamaño
+            if (strcmp(selection, "2") == 0){
+                //printf("<app_main> Actualizando Tamaño de Ventana\n");
+                Set_wSize();
+            }
+            //3 -> Terminar conexión
+            if (strcmp(selection, "3") == 0){
+                //printf("<app_main> Reiniciando Aplicacion\n");
                 break;
             }
         }
         vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
     }
-    free(data);
-    // Data sending stopped, sending just OK with \0 at the end
-    while (1){
-        uart_write_bytes(UART_NUM,"OK End\0",3);
-    }
+
+    ResetESP();
 }
