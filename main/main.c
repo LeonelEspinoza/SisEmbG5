@@ -444,6 +444,75 @@ int bme_pressure_pascal(uint32_t press_adc){
     return press_comp;
 }
 
+int bme_humidity_percentage(uint32_t hum_adc, float temp_comp){
+    //76543210
+    //<3:0> -> 3210
+    //<7:4> -> 7654
+    uint8_t addr_par_h1_lsb = 0xE2, addr_par_h1_msb = 0xE3;
+    addr_par_h1_lsb = addr_par_h1_lsb & 0b00001111;
+    
+    uint8_t addr_par_h2_lsb = 0xE2, addr_par_h2_msb = 0xE1;
+    addr_par_h2_lsb = addr_par_h2_lsb >> 4;
+    
+    uint8_t addr_par_h3_lsb = 0xE4;
+    uint8_t addr_par_h4_lsb = 0xE5;
+    uint8_t addr_par_h5_lsb = 0xE6;
+    uint8_t addr_par_h6_lsb = 0xE7;
+    uint8_t addr_par_h7_lsb = 0xE8;
+    uint16_t par_h1;
+    uint16_t par_h2;
+    uint16_t par_h3;
+    uint16_t par_h4;
+    uint16_t par_h5;
+    uint16_t par_h6;
+    uint16_t par_h7;
+
+    uint8_t par[9];
+    bme_i2c_read(I2C_NUM_0, &addr_par_h1_lsb, par, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h1_msb, par + 1, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h2_lsb, par + 2, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h2_msb, par + 3, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h3_lsb, par + 4, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h4_lsb, par + 5, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h5_lsb, par + 6, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h6_lsb, par + 7, 1);
+    bme_i2c_read(I2C_NUM_0, &addr_par_h7_lsb, par + 8, 1);
+
+    par_h1 = (par[1] << 8) | par[0];
+    par_h2 = (par[3] << 8) | par[2];
+    par_h3 = par[4];
+    par_h4 = par[5];
+    par_h5 = par[6];
+    par_h6 = par[7];
+    par_h7 = par[8];
+
+    int64_t var1;
+    int64_t var2;
+    int64_t var3;
+    int64_t var4;
+    int64_t var5;
+    int64_t var6;
+    int64_t temp_scaled;
+
+    int hum_comp;
+
+    temp_scaled = (int32_t)temp_comp;
+    var1 = (int32_t)hum_adc - (int32_t)((int32_t)par_h1 << 4) - (((temp_scaled * (int32_t)par_h3)/((int32_t)100))>>1);
+    var2 = ((int32_t)par_h2 * (((temp_scaled *
+    (int32_t)par_h4) / ((int32_t)100)) +
+    (((temp_scaled * ((temp_scaled * (int32_t)par_h5) /
+    ((int32_t)100))) >> 6) / ((int32_t)100)) + ((int32_t)(1<<14)))) >> 10;
+    var3 = var1 * var2;
+    var4 = (((int32_t)par_h6 << 7) + 
+    ((temp_scaled * (int32_t)par_h7) / ((int32_t)100))) >> 4;
+    var5 = ((var3 >> 14) * (var3 >> 14)) >> 10;
+    var6 = (var4 * var5) >> 1;
+    hum_comp = (var3 + var6) >> 12;
+    hum_comp = (((var3 + var6) >> 10) * ((int32_t) 1000)) >> 12;
+
+    return hum_comp;
+}
+
 
 void bme_get_mode(void) {
     uint8_t reg_mode = 0x74;
@@ -456,7 +525,7 @@ void bme_get_mode(void) {
     //printf("Valor de BME MODE: %2X \n\n", tmp);
 }
 
-float bme_read_data(void) {
+float bme_read_data_temperature(void) {
     // Datasheet[23:41]
     // https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf#page=23
 
@@ -506,6 +575,119 @@ float bme_read_data_pressure(void){
     return ret;
 }
 
+float bme_read_data_humidity(float temp){
+
+    uint8_t tmp;
+
+    uint8_t forced_hum_addr[] = {0x25, 0x26};
+    uint32_t hum_adc = 0;
+    bme_forced_mode();
+
+    bme_i2c_read(I2C_NUM_0, &forced_hum_addr[0], &tmp, 1);
+    hum_adc = hum_adc | tmp;
+    bme_i2c_read(I2C_NUM_0, &forced_hum_addr[1], &tmp, 1);
+    hum_adc = hum_adc | tmp;
+
+    uint32_t hum = bme_humidity_percentage(hum_adc,temp);
+
+    return hum;
+}
+/*
+ This internal API is used to read a single data of the sensor 
+
+static int8_t read_field_data(uint8_t index, struct bme68x_data *data, struct bme68x_dev *dev)
+{
+    int8_t rslt = BME68X_OK;
+    uint8_t buff[BME68X_LEN_FIELD] = { 0 };
+    uint8_t gas_range_l, gas_range_h;
+    uint32_t adc_temp;
+    uint32_t adc_pres;
+    uint16_t adc_hum;
+    uint16_t adc_gas_res_low, adc_gas_res_high;
+    uint8_t tries = 5;
+
+    while ((tries) && (rslt == BME68X_OK))
+    {
+        rslt = bme68x_get_regs(((uint8_t)(BME68X_REG_FIELD0 + (index * BME68X_LEN_FIELD_OFFSET))),
+                               buff,
+                               (uint16_t)BME68X_LEN_FIELD,
+                               dev);
+        if (!data)
+        {
+            rslt = BME68X_E_NULL_PTR;
+            break;
+        }
+
+        data->status = buff[0] & BME68X_NEW_DATA_MSK;
+        data->gas_index = buff[0] & BME68X_GAS_INDEX_MSK;
+        data->meas_index = buff[1];
+
+         read the raw data from the sensor 
+
+        adc_pres = (uint32_t)(((uint32_t)buff[2] * 4096) | ((uint32_t)buff[3] * 16) | ((uint32_t)buff[4] / 16));
+        adc_temp = (uint32_t)(((uint32_t)buff[5] * 4096) | ((uint32_t)buff[6] * 16) | ((uint32_t)buff[7] / 16));
+        adc_hum = (uint16_t)(((uint32_t)buff[8] * 256) | (uint32_t)buff[9]);
+        adc_gas_res_low = (uint16_t)((uint32_t)buff[13] * 4 | (((uint32_t)buff[14]) / 64));
+        adc_gas_res_high = (uint16_t)((uint32_t)buff[15] * 4 | (((uint32_t)buff[16]) / 64));
+        gas_range_l = buff[14] & BME68X_GAS_RANGE_MSK;
+        gas_range_h = buff[16] & BME68X_GAS_RANGE_MSK;
+        if (dev->variant_id == BME68X_VARIANT_GAS_HIGH)
+        {
+            data->status |= buff[16] & BME68X_GASM_VALID_MSK;
+            data->status |= buff[16] & BME68X_HEAT_STAB_MSK;
+        }
+        else
+        {
+            data->status |= buff[14] & BME68X_GASM_VALID_MSK;
+            data->status |= buff[14] & BME68X_HEAT_STAB_MSK;
+        }
+
+        if ((data->status & BME68X_NEW_DATA_MSK) && (rslt == BME68X_OK))
+        {
+            rslt = bme68x_get_regs(BME68X_REG_RES_HEAT0 + data->gas_index, &data->res_heat, 1, dev);
+            if (rslt == BME68X_OK)
+            {
+                rslt = bme68x_get_regs(BME68X_REG_IDAC_HEAT0 + data->gas_index, &data->idac, 1, dev);
+            }
+
+            if (rslt == BME68X_OK)
+            {
+                rslt = bme68x_get_regs(BME68X_REG_GAS_WAIT0 + data->gas_index, &data->gas_wait, 1, dev);
+            }
+
+            if (rslt == BME68X_OK)
+            {
+                data->temperature = calc_temperature(adc_temp, dev);
+                data->pressure = calc_pressure(adc_pres, dev);
+                data->humidity = calc_humidity(adc_hum, dev);
+                if (dev->variant_id == BME68X_VARIANT_GAS_HIGH)
+                {
+                    data->gas_resistance = calc_gas_resistance_high(adc_gas_res_high, gas_range_h);
+                }
+                else
+                {
+                    data->gas_resistance = calc_gas_resistance_low(adc_gas_res_low, gas_range_l, dev);
+                }
+
+                break;
+            }
+        }
+
+        if (rslt == BME68X_OK)
+        {
+            dev->delay_us(BME68X_PERIOD_POLL, dev->intf_ptr);
+        }
+
+        tries--;
+    }
+
+    return rslt;
+}
+*/
+
+float bme_read_data_CO(void){
+    return 1;
+}
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
 
 // Function for sending things to UART1
@@ -556,45 +738,116 @@ float RMS(float *data, int wsize, int begin){
     return rms;
 }
 
+/**
+ * @brief Funcion que calcula la FFT de un arreglo y guarda el resultado inplace
+ *
+ * @param array Arreglo de elementos sobre los que se quiere calcular la FFT
+ * @param size Tamano del arreglo
+ * @param array_re Direccion del arreglo donde se guardara la parte real. Debe ser de tamano size
+ * @param array_im Direccion del arreglo donde se guardara la parte imaginaria. Debe ser de tamano size
+ */
+void FFT(float *array, int size, float *array_re, float *array_im) {
+    for (int k = 0; k < size; k++) {
+        float real = 0;
+        float imag = 0;
+
+        for (int n = 0; n < size; n++) {
+            float angulo = 2 * M_PI * k * n / size;
+            float cos_angulo = cos(angulo);
+            float sin_angulo = -sin(angulo);
+
+            real += array[n] * cos_angulo;
+            imag += array[n] * sin_angulo;
+        }
+        real /= size;
+        imag /= size;
+        array_re[k] = real;
+        array_im[k] = imag;
+    }
+}
+
+int MyCompare(const void *arg1, const void *arg2){
+    return arg1>arg2? -1 : 1; 
+}
+
 void Process_Data() {
 
-    //printf("<Process_Data> Starting for (winSize=%d)\n", wSize);
-
     //Use wSize to set data size
-    int DataSize = sizeof(float)*(wSize*2+2);
+    int DataSize = sizeof(float)*(wSize*4 + 4); //Temp, Press, Hum, CO Meassure Data + each RMS
     float * data = malloc(DataSize);
     
     //Read and save data; wSize times each
     for (int i = 0; i < wSize; i++){
 
         //Read and save temperature data
-        //printf("<Process_Data> Reading temperature data %d\n", i);
-        float temp = bme_read_data();
+        float temp = bme_read_data_temperature();
         data[i] = temp;
 
         //Read and save pressure data
-        //printf("<Process_Data> Reading  presure data %d\n", i);
         float press = bme_read_data_pressure();
         data[wSize + i] = press;
+
+        //Read and save humidity data
+        float hum = bme_read_data_humidity(temp);
+        data[2*wSize + i] = hum;
+
+        //Read and save CO data
+        float CO = bme_read_data_CO();
+        data[3*wSize + i] = CO;
     }
     
-    //printf("<Process_Data> Calling RMS\n");
-    //Calculate presure and temperature RMS
-    float temp_RMS = RMS(data, wSize, 0);
-    float press_RMS = RMS(data, wSize, wSize);
+    //Calculate RMS
+    float temp_RMS  =   RMS(data, wSize, 0*wSize);
+    float press_RMS =   RMS(data, wSize, 1*wSize);
+    float hum_RMS   =   RMS(data, wSize, 2*wSize);
+    float CO_RMS    =   RMS(data, wSize, 3*wSize);
 
     //Save RMS
-    data[wSize*2] = temp_RMS;
-    data[wSize*2+1] = press_RMS;
-    //printf("<Process_Data> RMS done!\n");
+    data[wSize*4+0] = temp_RMS;
+    data[wSize*4+1] = press_RMS;
+    data[wSize*4+2] = hum_RMS;
+    data[wSize*4+3] = CO_RMS; 
     
     //Send data
-    //printf("<Process_Data> Sending data\n");
     const char* dataToSend = (const char*)data;
     uart_write_bytes(UART_NUM, dataToSend, DataSize);
 
-    //free data malloc
+    //Calculate 5 Peaks
+    qsort(data+wSize*0,wSize,sizeof(float), MyCompare);
+    qsort(data+wSize*1,wSize,sizeof(float), MyCompare);
+    qsort(data+wSize*2,wSize,sizeof(float), MyCompare);
+    qsort(data+wSize*3,wSize,sizeof(float), MyCompare);
+
+    //Save 5 Peaks
+    float peaks[5*4];
+    if(wSize>=5){
+        for(int i=0; i<5; i++){
+            peaks[i+5*0]=data[i+wSize*0];
+            peaks[i+5*1]=data[i+wSize*1];
+            peaks[i+5*2]=data[i+wSize*2];
+            peaks[i+5*3]=data[i+wSize*3];
+        }
+    }
+
+    //Send 5 Peaks
+    dataToSend = (const char*)peaks;
+    uart_write_bytes(UART_NUM, dataToSend, sizeof(float)*5*4);
+
+    int FFT_size = sizeof(float)*(wSize*2*4);   //4*wSize meassures; FFT have imaginary and real numbers;  
+    float * FFT_data = malloc(FFT_size);
+
+    //Calculate FFTs
+    FFT(data, wSize, FFT_data+wSize*0, FFT_data+wSize*1);
+    FFT(data, wSize, FFT_data+wSize*2, FFT_data+wSize*3);
+    FFT(data, wSize, FFT_data+wSize*4, FFT_data+wSize*5);
+    FFT(data, wSize, FFT_data+wSize*6, FFT_data+wSize*7);
+
+    //Send FFTs
+    dataToSend = (const char*)FFT_data;
+    uart_write_bytes(UART_NUM, dataToSend, FFT_size);
+
     free(data);
+    free(FFT_data);
 
     return;
 }
@@ -604,15 +857,11 @@ void Set_wSize() {
     char windowSize[5];
     esp_err_t err = nvs_flash_init();
     
-    //printf("<Set_wSize> Start serial reading\n");
     while(1){
         int rLen = serial_read(windowSize, 4);
         if (rLen > 0){
             windowSize[4]=0;
-            //printf("<Set_wSize> windowSize: %s",windowSize);
             wSize = atoi(windowSize);
-            //printf("<Set_wSize> Window size recived\n");
-            //printf("<Set_wSize> wSize: %d",wSize);
             break;
         }
     }
@@ -625,24 +874,26 @@ void Set_wSize() {
     }
 
     //Open
-    //printf("<Set_wSize> Opening Non-Volatile Storage (NVS) handle... ");
     nvs_handle_t my_handle;
     ret = nvs_open("storage", NVS_READWRITE, &my_handle);
 
     if (err != ESP_OK) {
-        //printf("<Set_wSize> Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+        printf("<Set_wSize> Error (%s) opening NVS handle!\n", esp_err_to_name(err));
         return;
     }
 
     //Write
     NVS_wsize = wSize;
     err = nvs_set_i32(my_handle, "NVS_wsize", NVS_wsize);
-    //printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+    if (err != ESP_OK){
+        printf("Failed!\n");
+    }
     
     //Comit write value
-    //printf("<Set_wSize> Comitting updates in NVS...");
     err = nvs_commit(my_handle);
-    //printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+    if (err != ESP_OK){
+        printf("Failed!\n");
+    }
 
     //close
     nvs_close(my_handle);
@@ -694,42 +945,30 @@ void setup_wsize() {
 
 // Main
 void app_main(){
-    //Primero se conecta esp con python
     uart_setup(); // Uart setup
-    setup_wsize();
+    setup_wsize(); // Window size from nvs
     
     char* dataToSend = "OK setup";
     uart_write_bytes(UART_NUM, (const char*)dataToSend ,strlen(dataToSend));
 
-    // Waiting for a BEGIN to initialize data sending
     char dataResponse1[6];
-    
     while (1){
         int rLen = serial_read(dataResponse1, 6);
         if (rLen > 0){
             if (strcmp(dataResponse1, "BEGIN") == 0){
-                //printf("<app_main> OK Begin\n");
                 break;
             }
         }
     }
 
-    //setea el tamaño de la ventana
-    //mandamos el tamano de la ventana
     char dataResponse2[3];
-    //const char* dataToSend = (const char*)wSize;
-    
-    //printf("<app_main> Sending wSize\n");
-
     while (1){
         int ar[1];
         ar[0]=wSize;
         uart_write_bytes(UART_NUM, (const char*)ar, sizeof(int));
         vTaskDelay(pdMS_TO_TICKS(500));  // Delay for 0.5 second
-        //printf("wSize sended: %d \n", ar[0]);
 
         int rLen = serial_read(dataResponse2, 3);
-
         if (rLen > 0){
             if (strcmp(dataResponse2, "OK") == 0){
                 break;
@@ -737,8 +976,6 @@ void app_main(){
         }
     }
 
-    //printf("<app_main> OK wSize\n");
-    
     //Conectamos esp con bme
     ESP_ERROR_CHECK(sensor_init());
     bme_get_chipid();
@@ -746,25 +983,20 @@ void app_main(){
     bme_get_mode();
     bme_forced_mode();
 
-    //printf("<app_main> OK BME\n");
-    
     char selection[2];
     while(1){
         int rLen = serial_read(selection, 2);
         if (rLen > 0){
             //1 -> Solicitar Ventana
             if (strcmp(selection, "1") == 0){
-                //printf("<app_main> Procesando Ventana de Datos\n");
                 Process_Data();
             }
             //2 -> Cambiar tamaño
             if (strcmp(selection, "2") == 0){
-                //printf("<app_main> Actualizando Tamaño de Ventana\n");
                 Set_wSize();
             }
             //3 -> Terminar conexión
             if (strcmp(selection, "3") == 0){
-                //printf("<app_main> Reiniciando Aplicacion\n");
                 break;
             }
         }

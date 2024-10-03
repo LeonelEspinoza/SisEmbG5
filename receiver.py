@@ -55,7 +55,6 @@ while True:
             continue
         finally:
             if str(response1).rfind('OK setup') == -1:
-                #print("retry")
                 continue
             print("sending BEGIN")
             break
@@ -109,9 +108,64 @@ while(True):
 
     if select == "1":
         #Set msg_size
-        msg_size = (wSize * 2) + 2 
-
+        msg_size = (wSize * 4) + 4 
+        meassure_data[0]
         # Try to Recive sensor data
+        while True:
+            if ser.in_waiting > 0:
+                try:
+                    meassure_data = receive_data(msg_size)
+                except:
+                    continue
+                finally:
+                    print('Data recived')
+                    break
+
+        temp_array = [0]
+        press_array = [0]
+        hum_array = [0]
+        CO_array = [0]
+        i=0
+        while(i<wSize):
+            temp_array[i]   =meassure_data[i]
+            press_array[i]  =meassure_data[i+wSize*1]
+            hum_array[i]    =meassure_data[i+wSize*2]
+            CO_array[i]     =meassure_data[i+wSize*3]
+        
+        temp_RMS = meassure_data[wSize*4+0]
+        press_RMS = meassure_data[wSize*4+1]
+        hum_RMS = meassure_data[wSize*4+2]
+        CO_RMS = meassure_data[wSize*4+3]
+        
+        print(f"Temperature data: {temp_array}")
+        print(f"Temperature RMS: {temp_RMS}")
+
+        print(f"Preasure data: {press_array}")
+        print(f"Preasure RMS: {press_RMS}")
+        
+        print(f"Humidity data: {hum_array}")
+        print(f"Humidity RMS: {hum_RMS}")
+
+        print(f"CO data: {CO_array}")
+        print(f"CO RMS: {CO_RMS}")
+ 
+        msg_size = 20
+        while True:
+            if ser.in_waiting > 0:
+                try:
+                    message_peaks = receive_data(msg_size)
+                except:
+                    continue
+                finally:
+                    print('Peaks recived')
+                    break
+
+        print(f'Peaks temp: {message_peaks[0:5]} \n')
+        print(f'Peaks press: {message_peaks[5:10]} \n')
+        print(f'Peaks hum: {message_peaks[10:15]} \n')
+        print(f'Peaks co: {message_peaks[15:20]} \n')
+
+        msg_size = (wSize * 2 * 4)
         while True:
             if ser.in_waiting > 0:
                 try:
@@ -119,13 +173,14 @@ while(True):
                 except:
                     continue
                 finally:
-                    if len(message) != msg_size:
-                        send_message(pack('2s',select.encode()))
-                        print("Incorrect Data")
-                        continue
-                    print('Data recived')
+                    print('FFT recived')
                     break
-
+                    
+        print(f'FFT temp: {message_peaks[0:wSize*2]} \n')
+        print(f'FFT press: {message_peaks[wSize*2:wSize*4]} \n')
+        print(f'FFT hum: {message_peaks[wSize*4:wSize*6]} \n')
+        print(f'FFT CO: {message_peaks[wSize*6:wSize*8]} \n')
+        
 
     if select == "2":
         
