@@ -443,7 +443,46 @@ int bme_pressure_pascal(uint32_t press_adc){
 
     return press_comp;
 }
+/*
+static uint32_t calc_humidity(uint16_t hum_adc, const struct bme68x_dev *dev)
+{
+    int32_t var1;
+    int32_t var2;
+    int32_t var3;
+    int32_t var4;
+    int32_t var5;
+    int32_t var6;
+    int32_t temp_scaled;
+    int32_t calc_hum;
 
+    //lint -save -e702 -e704 
+    temp_scaled = (((int32_t)dev->calib.t_fine * 5) + 128) >> 8;
+    var1 = (int32_t)(hum_adc - ((int32_t)((int32_t)dev->calib.par_h1 * 16))) -
+           (((temp_scaled * (int32_t)dev->calib.par_h3) / ((int32_t)100)) >> 1);
+    var2 =
+        ((int32_t)dev->calib.par_h2 *
+         (((temp_scaled * (int32_t)dev->calib.par_h4) / ((int32_t)100)) +
+          (((temp_scaled * ((temp_scaled * (int32_t)dev->calib.par_h5) / ((int32_t)100))) >> 6) / ((int32_t)100)) +
+          (int32_t)(1 << 14))) >> 10;
+    var3 = var1 * var2;
+    var4 = (int32_t)dev->calib.par_h6 << 7;
+    var4 = ((var4) + ((temp_scaled * (int32_t)dev->calib.par_h7) / ((int32_t)100))) >> 4;
+    var5 = ((var3 >> 14) * (var3 >> 14)) >> 10;
+    var6 = (var4 * var5) >> 1;
+    calc_hum = (((var3 + var6) >> 10) * ((int32_t)1000)) >> 12;
+    if (calc_hum > 100000)  //Cap at 100%rH 
+    {
+        calc_hum = 100000;
+    }
+    else if (calc_hum < 0)
+    {
+        calc_hum = 0;
+    }
+
+    //lint -restore 
+    return (uint32_t)calc_hum;
+}
+*/
 int bme_humidity_percentage(uint32_t hum_adc, float temp_comp){
     //76543210
     //<3:0> -> 3210
@@ -493,24 +532,49 @@ int bme_humidity_percentage(uint32_t hum_adc, float temp_comp){
     int64_t var5;
     int64_t var6;
     int64_t temp_scaled;
-
-    int hum_comp;
+    int32_t calc_hum;
+    
 
     temp_scaled = (int32_t)temp_comp;
-    var1 = (int32_t)hum_adc - (int32_t)((int32_t)par_h1 << 4) - (((temp_scaled * (int32_t)par_h3)/((int32_t)100))>>1);
-    var2 = ((int32_t)par_h2 * (((temp_scaled *
-    (int32_t)par_h4) / ((int32_t)100)) +
-    (((temp_scaled * ((temp_scaled * (int32_t)par_h5) /
-    ((int32_t)100))) >> 6) / ((int32_t)100)) + ((int32_t)(1<<14)))) >> 10;
+    var1 =  (int32_t)hum_adc - (int32_t)((int32_t)par_h1 << 4) - 
+            (((temp_scaled * (int32_t)par_h3) / ((int32_t)100))>>1);
+    var2 = 
+        ((int32_t)par_h2 * 
+        (((temp_scaled * (int32_t)par_h4) / ((int32_t)100)) +
+        (((temp_scaled * ((temp_scaled * (int32_t)par_h5) / ((int32_t)100))) >> 6) / ((int32_t)100)) + 
+        ((int32_t)(1<<14)))) >> 10;
     var3 = var1 * var2;
-    var4 = (((int32_t)par_h6 << 7) + 
-    ((temp_scaled * (int32_t)par_h7) / ((int32_t)100))) >> 4;
+    var4 = ((int32_t)par_h6 << 7);
+    var4 =  ((var4) + ((temp_scaled * (int32_t)par_h7) / ((int32_t)100))) >> 4;
     var5 = ((var3 >> 14) * (var3 >> 14)) >> 10;
     var6 = (var4 * var5) >> 1;
-    hum_comp = (var3 + var6) >> 12;
-    hum_comp = (((var3 + var6) >> 10) * ((int32_t) 1000)) >> 12;
+    calc_hum = (((var3 + var6) >> 10) * ((int32_t)1000)) >> 12;
+    
+    /*if (calc_hum > 100000)  //Cap at 100%rH 
+    {
+        calc_hum = 100000;
+    }
+    else if (calc_hum < 0)
+    {
+        calc_hum = 0;
+    }*/
+    
+    
+    calc_hum=calc_hum/10000000;
+    
+    return (uint32_t)calc_hum;
+}
 
-    return hum_comp;
+int bme_CO_concentration(uint32_t gas_adc, uint32_t gas_range){
+    uint32_t calc_gas_res;
+    uint32_t var1 = UINT32_C(262144) >> gas_range;
+    int32_t var2 = (int32_t)gas_adc - INT32_C(512);
+    var2 *= INT32_C(3);
+    var2 = INT32_C(4096) + var2;
+    calc_gas_res = (UINT32_C(10000) * var1) / (uint32_t)var2;
+    calc_gas_res = calc_gas_res * 100;
+
+    return calc_gas_res;
 }
 
 
@@ -584,13 +648,13 @@ float bme_read_data_humidity(float temp){
     bme_forced_mode();
 
     bme_i2c_read(I2C_NUM_0, &forced_hum_addr[0], &tmp, 1);
-    hum_adc = hum_adc | tmp;
+    hum_adc = hum_adc | tmp << 12; //8
     bme_i2c_read(I2C_NUM_0, &forced_hum_addr[1], &tmp, 1);
-    hum_adc = hum_adc | tmp;
+    hum_adc = hum_adc | tmp << 4;
 
     uint32_t hum = bme_humidity_percentage(hum_adc,temp);
 
-    return hum;
+    return (float)hum;
 }
 /*
  This internal API is used to read a single data of the sensor 
@@ -686,7 +750,31 @@ static int8_t read_field_data(uint8_t index, struct bme68x_data *data, struct bm
 */
 
 float bme_read_data_CO(void){
-    return 1;
+    uint8_t tmp;
+
+    //se obtienen los datos
+    uint8_t forced_co_addr[] = {0x2C, 0x2D};
+    uint32_t gas_adc = 0;
+    bme_forced_mode();
+    
+    
+    bme_i2c_read(I2C_NUM_0, &forced_co_addr[0], &tmp, 1);
+    gas_adc = gas_adc | tmp << 4;
+    bme_i2c_read(I2C_NUM_0, &forced_co_addr[1], &tmp, 1);
+    gas_adc = gas_adc | (tmp & 0xc0);
+
+    
+
+    uint8_t range_co_addr[] = {0x2D};
+    uint32_t gas_range = 0;
+
+
+    bme_i2c_read(I2C_NUM_0, &range_co_addr[0], &tmp, 1);
+    gas_range = gas_range | (tmp & 0xf);
+
+    uint32_t co = bme_CO_concentration(gas_adc,gas_range);
+
+    return (float)co; 
 }
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
 
@@ -752,6 +840,7 @@ void FFT(float *array, int size, float *array_re, float *array_im) {
         float imag = 0;
 
         for (int n = 0; n < size; n++) {
+            //3.14159265358979323846
             float angulo = 2 * M_PI * k * n / size;
             float cos_angulo = cos(angulo);
             float sin_angulo = -sin(angulo);
@@ -837,10 +926,10 @@ void Process_Data() {
     float * FFT_data = malloc(FFT_size);
 
     //Calculate FFTs
-    FFT(data, wSize, FFT_data+wSize*0, FFT_data+wSize*1);
-    FFT(data, wSize, FFT_data+wSize*2, FFT_data+wSize*3);
-    FFT(data, wSize, FFT_data+wSize*4, FFT_data+wSize*5);
-    FFT(data, wSize, FFT_data+wSize*6, FFT_data+wSize*7);
+    FFT(data+wSize*0, wSize, FFT_data+wSize*0, FFT_data+wSize*1);
+    FFT(data+wSize*1, wSize, FFT_data+wSize*2, FFT_data+wSize*3);
+    FFT(data+wSize*2, wSize, FFT_data+wSize*4, FFT_data+wSize*5);
+    FFT(data+wSize*3, wSize, FFT_data+wSize*6, FFT_data+wSize*7);
 
     //Send FFTs
     dataToSend = (const char*)FFT_data;

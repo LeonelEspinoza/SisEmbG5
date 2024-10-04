@@ -9,12 +9,12 @@ Proyecto semestral del ramo Sistemas Embebidos y Sensores (CC5328-1)
 # Iteración 2
 _En proceso_
 ### Añadir neuvas mediciones a la ventana de datos
-- [  ] Humedad
+- [ ~ ] Humedad
 - [  ] Concentración de CO
 
 ### Calculo de nuevas métricas
-- [  ] 5 peaks
-- [  ] FFT
+- [ X ] 5 peaks
+- [ X ] FFT
 
 ### Opcionales
 - [  ] Envio de datos uno a uno

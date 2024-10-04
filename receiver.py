@@ -25,10 +25,10 @@ def receive_data(msg_size):
     #print(f"<receive_data> msg_size: {msg_size}")
     data = ser.read(4*msg_size)
     #data = ser.readline()
-    print(data)
-    print(f"<receive_data> calling unpack with {msg_size}f")
+    #print(data)
+    #print(f"<receive_data> calling unpack with {msg_size}f")
     data = unpack(f"{msg_size}f", data)
-    print(f'Received: {data}')
+    #print(f'Received: {data}')
     return data
 
 def send_end_message():
@@ -109,7 +109,7 @@ while(True):
     if select == "1":
         #Set msg_size
         msg_size = (wSize * 4) + 4 
-        meassure_data[0]
+        meassure_data=[0]
         # Try to Recive sensor data
         while True:
             if ser.in_waiting > 0:
@@ -118,19 +118,20 @@ while(True):
                 except:
                     continue
                 finally:
-                    print('Data recived')
+                    print('Data recived \n')
                     break
 
-        temp_array = [0]
-        press_array = [0]
-        hum_array = [0]
-        CO_array = [0]
+        temp_array = [0 for i in range(wSize)]
+        press_array = [0 for i in range(wSize)]
+        hum_array = [0 for i in range(wSize)]
+        CO_array = [0 for i in range(wSize)]
         i=0
         while(i<wSize):
             temp_array[i]   =meassure_data[i]
             press_array[i]  =meassure_data[i+wSize*1]
             hum_array[i]    =meassure_data[i+wSize*2]
             CO_array[i]     =meassure_data[i+wSize*3]
+            i+=1
         
         temp_RMS = meassure_data[wSize*4+0]
         press_RMS = meassure_data[wSize*4+1]
@@ -138,16 +139,16 @@ while(True):
         CO_RMS = meassure_data[wSize*4+3]
         
         print(f"Temperature data: {temp_array}")
-        print(f"Temperature RMS: {temp_RMS}")
+        print(f"Temperature RMS: {temp_RMS} \n")
 
         print(f"Preasure data: {press_array}")
-        print(f"Preasure RMS: {press_RMS}")
+        print(f"Preasure RMS: {press_RMS} \n")
         
         print(f"Humidity data: {hum_array}")
-        print(f"Humidity RMS: {hum_RMS}")
+        print(f"Humidity RMS: {hum_RMS} \n")
 
         print(f"CO data: {CO_array}")
-        print(f"CO RMS: {CO_RMS}")
+        print(f"CO RMS: {CO_RMS} \n")
  
         msg_size = 20
         while True:
@@ -157,29 +158,29 @@ while(True):
                 except:
                     continue
                 finally:
-                    print('Peaks recived')
+                    print('Peaks recived \n')
                     break
 
-        print(f'Peaks temp: {message_peaks[0:5]} \n')
-        print(f'Peaks press: {message_peaks[5:10]} \n')
-        print(f'Peaks hum: {message_peaks[10:15]} \n')
+        print(f'Peaks temp: {message_peaks[0:5]} ')
+        print(f'Peaks press: {message_peaks[5:10]} ')
+        print(f'Peaks hum: {message_peaks[10:15]} ')
         print(f'Peaks co: {message_peaks[15:20]} \n')
 
         msg_size = (wSize * 2 * 4)
         while True:
             if ser.in_waiting > 0:
                 try:
-                    message = receive_data(msg_size)
+                    message_FFT = receive_data(msg_size)
                 except:
                     continue
                 finally:
-                    print('FFT recived')
+                    print('FFT recived \n')
                     break
                     
-        print(f'FFT temp: {message_peaks[0:wSize*2]} \n')
-        print(f'FFT press: {message_peaks[wSize*2:wSize*4]} \n')
-        print(f'FFT hum: {message_peaks[wSize*4:wSize*6]} \n')
-        print(f'FFT CO: {message_peaks[wSize*6:wSize*8]} \n')
+        print(f'FFT temp: {message_FFT[0:wSize*2]} ')
+        print(f'FFT press: {message_FFT[wSize*2:wSize*4]} ')
+        print(f'FFT hum: {message_FFT[wSize*4:wSize*6]} ')
+        print(f'FFT CO: {message_FFT[wSize*6:wSize*8]} \n')
         
 
     if select == "2":
