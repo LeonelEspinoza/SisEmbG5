@@ -558,10 +558,7 @@ int bme_humidity_percentage(uint32_t hum_adc, float temp_comp){
     {
         calc_hum = 0;
     }*/
-    
-    
-    calc_hum=calc_hum/10000000;
-    
+        
     return (uint32_t)calc_hum;
 }
 
@@ -654,7 +651,7 @@ float bme_read_data_humidity(float temp){
 
     uint32_t hum = bme_humidity_percentage(hum_adc,temp);
 
-    return (float)hum;
+    return (float)hum/10000000;
 }
 /*
  This internal API is used to read a single data of the sensor 
